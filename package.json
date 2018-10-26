@@ -2,8 +2,8 @@
   "name": "ilp-grpc",
   "version": "1.0.0",
   "description": "",
-  "main": "./lib/index.js",
-  "typings": "./lib/index.d.ts",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
   "scripts": {
     "start": "tsc && node lib/index.js",
     "test": "jest",
