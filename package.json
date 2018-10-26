@@ -25,13 +25,15 @@
     "eventemitter2": "^5.0.1",
     "grpc": "^1.15.1",
     "ilp-packet": "^3.0.0",
-    "ipc-msg": "github:adrianhopebailie/ipc-msg",
     "riverpig": "^1.1.4",
     "through2": "^2.0.3",
     "typescript": "^2.9.2"
   },
   "files": [
-    "lib"
+    "src/*.js",
+    "src/*.js.map",
+    "src/*.ts",
+    "src/*.d.ts"
   ],
   "devDependencies": {
     "@types/jest": "^23.3.0",

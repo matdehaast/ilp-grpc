@@ -91,13 +91,8 @@ export default class IlpGrpc extends EventEmitter2 {
     async _handleIncomingDataStream (data: any) {
         let btpPacket: BtpPacket
 
+        // TODO maybe need a check to see if correct btp packet?
         btpPacket = data
-        // try {
-        //     btpPacket = BtpPacket.deserialize(new Buffer(data.data))
-        // } catch (err) {
-        //     console.log('deserialization error:', err)
-        //     return
-        // }
 
         try {
             await this._handleIncomingBtpPacket('', btpPacket)
@@ -211,7 +206,6 @@ export default class IlpGrpc extends EventEmitter2 {
     }
 
     handleStreamData(call: any) {
-        console.log('setupStream')
         this._stream = call
         this._stream.on('data', this._handleIncomingDataStream.bind(this));
     }
@@ -222,13 +216,11 @@ export default class IlpGrpc extends EventEmitter2 {
         // @ts-ignore
         this._grpc.bind('0.0.0.0:' + this._listener.port, grpc.ServerCredentials.createInsecure());
         this._grpc.start();
-        console.log('setup ', this.whichOne())
     }
 
     private async _setupClient() {
         this._grpc = new interledger.Interledger(this._server,
             grpc.credentials.createInsecure())
-        console.log('setup ', this.whichOne())
         this._stream = this._grpc.Stream()
         this._stream.on('data', this._handleIncomingDataStream.bind(this));
     }
