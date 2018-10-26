@@ -266,15 +266,15 @@ export default class IlpGrpc extends EventEmitter2 {
         else callback({}, null)
     }
 
-    updateConnectionStatus(isConnected: boolean){
+    async updateConnectionStatus(isConnected: boolean) : Promise<any> {
 
-        this._grpc.HandleConnectionChange({accountId: this._accountId, isConnected: isConnected}, function(err: any, response: any){
-
-            if(err) console.log('err', err)
-            else console.log(response)
-
+        return new Promise((resolve, reject) =>  {
+            this._grpc.handleConnectionChange({accountId: this._accountId, isConnected: isConnected}, function(error: any, response: any){
+                if(error)
+                    reject()
+                resolve(response)
+            })
         })
-
     }
 
     async addAccount(data: any) : Promise<any> {

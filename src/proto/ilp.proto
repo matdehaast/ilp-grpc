@@ -15,6 +15,7 @@ message AccountInfo {
     string relation = 1;
     int32 assetScale = 2;
     string assetCode = 3;
+    AccountOptions options = 5;
 }
 
 message AccountOptions {
@@ -25,7 +26,6 @@ message AccountOptions {
 
 message AccountOptionsInfo {
     string prefix = 1;
-    string grpcAddress = 2;
 }
 
 message NewAccountRequest {
