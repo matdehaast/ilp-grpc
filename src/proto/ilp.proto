@@ -15,6 +15,7 @@ message AccountInfo {
     string relation = 1;
     int32 assetScale = 2;
     string assetCode = 3;
+    string plugin = 4;
     AccountOptions options = 5;
 }
 
