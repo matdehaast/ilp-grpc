@@ -28,7 +28,7 @@ export interface IlpGrpcConstructorOptions {
         secret: string
     }
     dataHandler: any
-    addAcountHandler?: any
+    addAccountHandler?: any
     connectionChangeHandler?: any
     accountId? : string
     accountOptions?: object
@@ -79,7 +79,7 @@ export default class IlpGrpc extends EventEmitter2 {
         this._log = console
         this._responseTimeout = DEFAULT_TIMEOUT
         this._dataHandler = options.dataHandler
-        this._addAccountHandler = options.addAcountHandler
+        this._addAccountHandler = options.addAccountHandler
         this._connectionChangeHandler = options.connectionChangeHandler
         this._streams = new Map()
         if(options.accountId)
@@ -268,7 +268,7 @@ export default class IlpGrpc extends EventEmitter2 {
 
     updateConnectionStatus(isConnected: boolean){
 
-        this._grpc.handleConnectionChange({accountId: this._accountId, isConnected: isConnected}, function(err: any, response: any){
+        this._grpc.HandleConnectionChange({accountId: this._accountId, isConnected: isConnected}, function(err: any, response: any){
 
             if(err) console.log('err', err)
             else console.log(response)
