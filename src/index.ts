@@ -27,7 +27,7 @@ export interface IlpGrpcConstructorOptions {
         port: number,
         secret: string
     }
-    handleData: any
+    dataHandler: any
     accountId? : string
 }
 
@@ -63,7 +63,7 @@ export default class IlpGrpc extends EventEmitter2 {
     private _streams: Map<string, any>
     protected _log: any
     protected _responseTimeout: number
-    protected _handleData: any
+    protected _dataHandler: any
     protected _accountId?: string
 
     constructor (options: IlpGrpcConstructorOptions) {
@@ -72,7 +72,7 @@ export default class IlpGrpc extends EventEmitter2 {
         this._server = options.server
         this._log = console
         this._responseTimeout = DEFAULT_TIMEOUT
-        this._handleData = options.handleData
+        this._dataHandler = options.dataHandler
         this._streams = new Map()
         if(options.accountId)
             this._accountId = options.accountId
@@ -267,4 +267,115 @@ export default class IlpGrpc extends EventEmitter2 {
             : Buffer.alloc(0)
     }
 
+    protected async _handleData (from: string, btpPacket: BtpPacket): Promise<Array<BtpSubProtocol>> {
+        const { data } = btpPacket
+        const { ilp } = protocolDataToIlpAndCustom(data) /* Defined in protocol-data-converter.ts. */
+
+        if (!this._dataHandler) {
+            throw new Error('no request handler registered')
+        }
+
+        const response = await this._dataHandler(ilp)
+        return ilpAndCustomToProtocolData({ ilp: response })
+    }
+
+}
+
+import { BtpSubProtocol } from '.'
+const Btp = require('btp-packet')
+
+/**
+ * Convert BTP protocol array to a protocol map of all the protocols inside the
+ * BTP sub protocol array. Also specifically extract the `ilp` and `custom` protocols
+ * from the map.
+ */
+export function protocolDataToIlpAndCustom (data: { protocolData: Array<BtpSubProtocol> }) {
+    const protocolMap = {}
+    const { protocolData } = data
+
+    for (const protocol of protocolData) {
+        const name = protocol.protocolName
+
+        if (protocol.contentType === Btp.MIME_TEXT_PLAIN_UTF8) {
+            // @ts-ignore
+            protocolMap[name] = protocol.data.toString('utf8')
+        } else if (protocol.contentType === Btp.MIME_APPLICATION_JSON) {
+            // @ts-ignore
+            protocolMap[name] = JSON.parse(protocol.data.toString('utf8'))
+        } else {
+            // @ts-ignore
+            protocolMap[name] = protocol.data
+        }
+    }
+
+    return {
+        protocolMap,
+        // @ts-ignore
+        ilp: protocolMap['ilp'],
+        // @ts-ignore
+        custom: protocolMap['custom']
+    }
+}
+
+/** Convert `ilp` and `custom` protocol data, along with a protocol map, into
+ * an array of BTP sub protocols. Order of precedence in the BTP sub protocol
+ * array is: `ilp`, any explicitly defined sub protocols (the ones in the
+ * protocol map), and finally `custom`.
+ */
+export function ilpAndCustomToProtocolData (data: { ilp?: Buffer, custom?: Object , protocolMap?: Map<string, Buffer | string | Object> }): Array<BtpSubProtocol> {
+    const protocolData = []
+    const { ilp, custom, protocolMap } = data
+
+    // ILP is always the primary protocol when it's specified
+    if (ilp) {
+        protocolData.push({
+            protocolName: 'ilp',
+            contentType: Btp.MIME_APPLICATION_OCTET_STREAM,
+            // TODO JS originally had a Buffer.from(ilp, 'base64')?
+            data: ilp
+        })
+    }
+
+    // explicitly specified sub-protocols come next
+    if (protocolMap) {
+        const sideProtocols = Object.keys(protocolMap)
+        for (const protocol of sideProtocols) {
+            // @ts-ignore
+            if (Buffer.isBuffer(protocolMap[protocol])) {
+                protocolData.push({
+                    protocolName: protocol,
+                    contentType: Btp.MIME_APPLICATION_OCTET_STREAM,
+                    // @ts-ignore
+                    data: protocolMap[protocol]
+                })
+                // @ts-ignore
+            } else if (typeof protocolMap[protocol] === 'string') {
+                protocolData.push({
+                    protocolName: protocol,
+                    contentType: Btp.MIME_TEXT_PLAIN_UTF8,
+                    // @ts-ignore
+                    data: Buffer.from(protocolMap[protocol])
+                })
+            } else {
+                protocolData.push({
+                    protocolName: protocol,
+                    contentType: Btp.MIME_APPLICATION_JSON,
+                    // @ts-ignore
+                    data: Buffer.from(JSON.stringify(protocolMap[protocol]))
+                })
+            }
+        }
+    }
+
+    // the "custom" side protocol is always secondary unless its the only sub
+    // protocol.
+    if (custom) {
+        protocolData.push({
+            protocolName: 'custom',
+            contentType: Btp.MIME_APPLICATION_JSON,
+            data: Buffer.from(JSON.stringify(custom))
+        })
+    }
+
+    return protocolData
 }

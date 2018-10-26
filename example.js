@@ -16,15 +16,11 @@ function sleep(ms){
 async function main() {
     let server = new IlpGrpc({
         listener: {port: 5505},
-        handleData: (from, data) =>
-            [{
-                protocolName: 'ilp',
-                contentType: BtpPacket.MIME_APPLICATION_OCTET_STREAM,
-                data: IlpPacket.serializeIlpFulfill({
-                    fulfillment,
-                    data: Buffer.from('thank you')
-                })
-            }]
+        dataHandler: (from, data) =>
+            IlpPacket.serializeIlpFulfill({
+                fulfillment,
+                data: Buffer.from('thank you')
+            })
     })
     await server.connect()
 
