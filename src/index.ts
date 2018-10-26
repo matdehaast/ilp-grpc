@@ -28,7 +28,10 @@ export interface IlpGrpcConstructorOptions {
         secret: string
     }
     dataHandler: any
+    addAcountHandler?: any
+    connectionChangeHandler?: any
     accountId? : string
+    accountOptions?: object
 }
 
 export interface BtpPacket {
@@ -64,7 +67,10 @@ export default class IlpGrpc extends EventEmitter2 {
     protected _log: any
     protected _responseTimeout: number
     protected _dataHandler: any
+    protected _addAccountHandler: any
+    protected _connectionChangeHandler?: any
     protected _accountId?: string
+    protected _accountOptions?: {}
 
     constructor (options: IlpGrpcConstructorOptions) {
         super()
@@ -73,8 +79,11 @@ export default class IlpGrpc extends EventEmitter2 {
         this._log = console
         this._responseTimeout = DEFAULT_TIMEOUT
         this._dataHandler = options.dataHandler
+        this._addAccountHandler = options.addAcountHandler
+        this._connectionChangeHandler = options.connectionChangeHandler
         this._streams = new Map()
         if(options.accountId)
+            this._accountOptions = options.accountOptions
             this._accountId = options.accountId
     }
 
@@ -167,7 +176,6 @@ export default class IlpGrpc extends EventEmitter2 {
         console.log(`sending btp packet. type=${typeString} requestId=${requestId}`)
         try {
             let streamKey = this.isServer() ? to : 'server'
-            console.log("STREAM KEY", streamKey, this._streams.get(streamKey))
             await new Promise((resolve) => this._streams.get(streamKey).write(btpPacket, resolve))
         } catch (e) {
             console.log('unable to send btp message to client: ' + e.message, 'btp packet:', JSON.stringify(btpPacket))
@@ -222,7 +230,7 @@ export default class IlpGrpc extends EventEmitter2 {
 
     private async _setupServer() {
         this._grpc = new grpc.Server();
-        this._grpc.addService(interledger.Interledger.service, {AddAccount: (call: any, callback: any) => {callback(null, {}) }, Stream: this.handleStreamData.bind(this)});
+        this._grpc.addService(interledger.Interledger.service, {AddAccount: this.handleAddAccount.bind(this), Stream: this.handleStreamData.bind(this), HandleConnectionChange: this.handleConnectionChange.bind(this)});
         // @ts-ignore
         this._grpc.bind('0.0.0.0:' + this._listener.port, grpc.ServerCredentials.createInsecure());
         this._grpc.start();
@@ -235,6 +243,38 @@ export default class IlpGrpc extends EventEmitter2 {
         meta.add('accountId', this._accountId);
         await this._streams.set('server', this._grpc.Stream(meta))
         this._streams.get('server').on('data', this._handleIncomingDataStream.bind(this));
+    }
+
+    handleAddAccount(call: any, callback: any) {
+        let { request } = call;
+
+        if(this._addAccountHandler) {
+            this._addAccountHandler(request.id, request.info)
+            callback(null, {})
+        }
+        else callback({}, null)
+    }
+
+    handleConnectionChange(call: any, callback: any){
+
+        let { request } = call;
+
+        if(this._connectionChangeHandler) {
+            this._connectionChangeHandler(request.accountId, request.isConnected)
+            callback(null, {})
+        }
+        else callback({}, null)
+    }
+
+    updateConnectionStatus(isConnected: boolean){
+
+        this._grpc.handleConnectionChange({accountId: this._accountId, isConnected: isConnected}, function(err: any, response: any){
+
+            if(err) console.log('err', err)
+            else console.log(response)
+
+        })
+
     }
 
     async addAccount(data: any) : Promise<any> {

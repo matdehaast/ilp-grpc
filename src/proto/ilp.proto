@@ -7,7 +7,7 @@ service Interledger {
 //    rpc RemoveAccount(ConnectionRequest) returns (ConnectionResponse) {}
 //    rpc TrackConnection (ConnectionRequest) returns (ConnectionResponse) {}
 //    rpc UntrackConnection (ConnectionRequest) returns (ConnectionResponse) {}
-//    rpc HandleConnectionChange (ConnectionChangeRequest) returns (ConnectionResponse) {}
+    rpc HandleConnectionChange (ConnectionChangeRequest) returns (ConnectionResponse) {}
     rpc Stream (stream BtpPacket) returns (stream BtpPacket) {}
 }
 
@@ -30,7 +30,7 @@ message AccountOptionsInfo {
 
 message NewAccountRequest {
     string id = 1;
-//    AccountInfo info = 2;
+    AccountInfo info = 2;
 }
 
 message NewAccountResponse {
