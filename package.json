@@ -34,7 +34,7 @@
     "src/*.js.map",
     "src/*.ts",
     "src/*.d.ts",
-    "src/*.proto"
+    "src/proto/*.proto"
   ],
   "devDependencies": {
     "@types/jest": "^23.3.0",
