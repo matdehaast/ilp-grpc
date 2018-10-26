@@ -271,7 +271,7 @@ export default class IlpGrpc extends EventEmitter2 {
         return new Promise((resolve, reject) =>  {
             this._grpc.HandleConnectionChange({accountId: this._accountId, isConnected: isConnected}, function(error: any, response: any){
                 if(error)
-                    reject()
+                    reject(error)
                 resolve(response)
             })
         })
@@ -281,7 +281,7 @@ export default class IlpGrpc extends EventEmitter2 {
         return new Promise((resolve, reject) => {
             this._grpc.AddAccount(data, (error: any, response: any) => {
                 if(error)
-                    reject()
+                    reject(error)
                 resolve(response)
             })
         })

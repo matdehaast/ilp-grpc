@@ -21,7 +21,7 @@ async function main() {
                 fulfillment,
                 data: Buffer.from('thank you')
             }),
-        addAcountHandler: (id, info) => {
+        addAccountHandler: (id, info) => {
             console.log(id, info)
         },
         connectionChangeHandler: (id, isConnected) => {
@@ -40,16 +40,26 @@ async function main() {
             })
     })
 
+    console.log('update')
+
     await client.connect()
 
-    await sleep(1000)
+    console.log('update')
 
-    await client.addAccount({
-        id: 'matt'
-    })
+    try {
+        await client.addAccount({
+            id: 'matt',
+            info: {
+                relation: 'child',
+                assetScale: 9,
+                assetCode: 'xrp'
+            }
+        })
+    } catch(error) {
+        console.log(error)
+    }
 
-    await sleep(1000)
-
+    console.log('update')
     await client.updateConnectionStatus(true)
 
     // const preparePacket = IlpPacket.serializeIlpPrepare({
