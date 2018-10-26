@@ -1,6 +1,6 @@
 import { EventEmitter2, Listener } from 'eventemitter2'
 const BtpPacket = require('btp-packet')
-
+import * as crypto from 'crypto'
 const DEFAULT_TIMEOUT = 35000
 
 /**
@@ -290,7 +290,7 @@ export default class IlpGrpc extends EventEmitter2 {
     async sendData (buffer: Buffer, to: string): Promise<Buffer> {
         const response = await this._call(to, {
             type: BtpPacket.TYPE_MESSAGE,
-            requestId: 1234,
+            requestId: await _requestId(),
             data: { protocolData: [{
                     protocolName: 'ilp',
                     contentType: BtpPacket.MIME_APPLICATION_OCTET_STREAM,
@@ -418,4 +418,16 @@ export function ilpAndCustomToProtocolData (data: { ilp?: Buffer, custom?: Objec
     }
 
     return protocolData
+}
+
+/**
+ * Generate a new request id.
+ */
+function _requestId (): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+        crypto.randomBytes(4, (err, buf) => {
+            if (err) return reject(err)
+            resolve(buf.readUInt32BE(0))
+        })
+    })
 }
