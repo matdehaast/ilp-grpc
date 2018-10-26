@@ -27,8 +27,11 @@ async function main() {
     let client = new IlpGrpc({
         server: "0.0.0.0:5505",
         accountId: 'test',
-        handleData: () =>
-            console.log('client1')
+        dataHandler: (from, data) =>
+            IlpPacket.serializeIlpFulfill({
+                fulfillment,
+                data: Buffer.from('thank you')
+            })
     })
 
     await client.connect()
@@ -47,7 +50,7 @@ async function main() {
         data: Buffer.alloc(0)
     })
 
-    let response = await client.sendData(preparePacket)
+    let response = await server.sendData(preparePacket, 'test')
 
     await sleep(1000)
 

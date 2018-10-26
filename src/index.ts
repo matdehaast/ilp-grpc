@@ -167,6 +167,7 @@ export default class IlpGrpc extends EventEmitter2 {
         console.log(`sending btp packet. type=${typeString} requestId=${requestId}`)
         try {
             let streamKey = this.isServer() ? to : 'server'
+            console.log("STREAM KEY", streamKey, this._streams.get(streamKey))
             await new Promise((resolve) => this._streams.get(streamKey).write(btpPacket, resolve))
         } catch (e) {
             console.log('unable to send btp message to client: ' + e.message, 'btp packet:', JSON.stringify(btpPacket))
@@ -214,8 +215,7 @@ export default class IlpGrpc extends EventEmitter2 {
     }
 
     handleStreamData(call: any) {
-        console.log('setup stream')
-        let accountId = call.metadata.get('accountId')
+        let accountId = call.metadata.get('accountId')[0]
         this._streams.set(accountId, call)
         this._streams.get(accountId).on('data', (data: any) => this._handleIncomingDataStream(data, accountId));
     }
@@ -247,8 +247,8 @@ export default class IlpGrpc extends EventEmitter2 {
         })
     }
 
-    async sendData (buffer: Buffer): Promise<Buffer> {
-        const response = await this._call('', {
+    async sendData (buffer: Buffer, to: string): Promise<Buffer> {
+        const response = await this._call(to, {
             type: BtpPacket.TYPE_MESSAGE,
             requestId: 1234,
             data: { protocolData: [{
