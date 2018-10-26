@@ -16,7 +16,7 @@ function sleep(ms){
 async function main() {
     let server = new IlpGrpc({
         listener: {port: 5505},
-        handleData: () =>
+        handleData: (from, data) =>
             [{
                 protocolName: 'ilp',
                 contentType: BtpPacket.MIME_APPLICATION_OCTET_STREAM,
@@ -30,17 +30,14 @@ async function main() {
 
     let client = new IlpGrpc({
         server: "0.0.0.0:5505",
+        accountId: 'test',
         handleData: () =>
-            [{
-                protocolName: 'ilp',
-                contentType: BtpPacket.MIME_APPLICATION_OCTET_STREAM,
-                data: IlpPacket.serializeIlpFulfill({
-                    fulfillment,
-                    data: Buffer.from('thank you')
-                })
-            }]
+            console.log('client1')
     })
+
     await client.connect()
+
+    await sleep(1000)
 
     await client.addAccount({
         id: 'matt'

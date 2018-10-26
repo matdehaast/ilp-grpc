@@ -28,6 +28,7 @@ export interface IlpGrpcConstructorOptions {
         secret: string
     }
     handleData: any
+    accountId? : string
 }
 
 export interface BtpPacket {
@@ -59,10 +60,11 @@ export default class IlpGrpc extends EventEmitter2 {
     }
     private _server?: string
     private _grpc: any
-    private _stream: any
+    private _streams: Map<string, any>
     protected _log: any
     protected _responseTimeout: number
     protected _handleData: any
+    protected _accountId?: string
 
     constructor (options: IlpGrpcConstructorOptions) {
         super()
@@ -71,6 +73,9 @@ export default class IlpGrpc extends EventEmitter2 {
         this._log = console
         this._responseTimeout = DEFAULT_TIMEOUT
         this._handleData = options.handleData
+        this._streams = new Map()
+        if(options.accountId)
+            this._accountId = options.accountId
     }
 
     async connect () {
@@ -88,21 +93,25 @@ export default class IlpGrpc extends EventEmitter2 {
         return this._server ? 'client' : 'server';
     }
 
-    async _handleIncomingDataStream (data: any) {
+    isServer() : boolean {
+        return !this._server
+    }
+
+    async _handleIncomingDataStream (data: any, from: string = '') {
         let btpPacket: BtpPacket
 
         // TODO maybe need a check to see if correct btp packet?
         btpPacket = data
 
         try {
-            await this._handleIncomingBtpPacket('', btpPacket)
+            await this._handleIncomingBtpPacket(from, btpPacket)
         } catch (err) {
             console.log(`Error processing BTP packet of type ${btpPacket.type}: `, err)
             const error = {code: "1", name: "2", triggeredAt: new Date(), data: ""}//jsErrorToBtpError(err)
             const requestId = btpPacket.requestId
             const { code, name, triggeredAt, data } = error
 
-            await this._handleOutgoingBtpPacket('', {
+            await this._handleOutgoingBtpPacket(from, {
                 type: BtpPacket.TYPE_ERROR,
                 requestId,
                 data: {
@@ -138,9 +147,7 @@ export default class IlpGrpc extends EventEmitter2 {
                 break
 
             case BtpPacket.TYPE_MESSAGE:
-                console.log(this.whichOne())
                 result = await this._handleData(from, btpPacket)
-                console.log(result)
                 break
 
             default:
@@ -159,7 +166,8 @@ export default class IlpGrpc extends EventEmitter2 {
         const typeString = BtpPacket.typeToString(type)
         console.log(`sending btp packet. type=${typeString} requestId=${requestId}`)
         try {
-            await new Promise((resolve) => this._stream.write(btpPacket, resolve))
+            let streamKey = this.isServer() ? to : 'server'
+            await new Promise((resolve) => this._streams.get(streamKey).write(btpPacket, resolve))
         } catch (e) {
             console.log('unable to send btp message to client: ' + e.message, 'btp packet:', JSON.stringify(btpPacket))
         }
@@ -206,8 +214,10 @@ export default class IlpGrpc extends EventEmitter2 {
     }
 
     handleStreamData(call: any) {
-        this._stream = call
-        this._stream.on('data', this._handleIncomingDataStream.bind(this));
+        console.log('setup stream')
+        let accountId = call.metadata.get('accountId')
+        this._streams.set(accountId, call)
+        this._streams.get(accountId).on('data', (data: any) => this._handleIncomingDataStream(data, accountId));
     }
 
     private async _setupServer() {
@@ -221,8 +231,10 @@ export default class IlpGrpc extends EventEmitter2 {
     private async _setupClient() {
         this._grpc = new interledger.Interledger(this._server,
             grpc.credentials.createInsecure())
-        this._stream = this._grpc.Stream()
-        this._stream.on('data', this._handleIncomingDataStream.bind(this));
+        let meta = new grpc.Metadata();
+        meta.add('accountId', this._accountId);
+        await this._streams.set('server', this._grpc.Stream(meta))
+        this._streams.get('server').on('data', this._handleIncomingDataStream.bind(this));
     }
 
     async addAccount(data: any) : Promise<any> {
