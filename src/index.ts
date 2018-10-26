@@ -315,7 +315,7 @@ export default class IlpGrpc extends EventEmitter2 {
             throw new Error('no request handler registered')
         }
 
-        const response = await this._dataHandler(ilp)
+        const response = await this._dataHandler(from, ilp)
         return ilpAndCustomToProtocolData({ ilp: response })
     }
 
