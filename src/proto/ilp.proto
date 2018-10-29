@@ -38,7 +38,7 @@ message NewAccountResponse {
 }
 
 message BtpPacket {
-    int32 requestId = 1;
+    uint32 requestId = 1;
     int32 type = 2;
     BtpPacketData data = 3;
 }
