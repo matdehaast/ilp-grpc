@@ -428,7 +428,7 @@ function _requestId (): Promise<number> {
     return new Promise<number>((resolve, reject) => {
         crypto.randomBytes(4, (err, buf) => {
             if (err) return reject(err)
-            resolve(buf.readInt32BE(0))
+            resolve(buf.readUInt32BE(0))
         })
     })
 }
