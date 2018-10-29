@@ -364,7 +364,7 @@ export function protocolDataToIlpAndCustom (data: { protocolData: Array<BtpSubPr
  * protocol map), and finally `custom`.
  */
 export function ilpAndCustomToProtocolData (data: { ilp?: Buffer, custom?: Object , protocolMap?: Map<string, Buffer | string | Object> }): Array<BtpSubProtocol> {
-    const protocolData = []
+    const protocolData : BtpSubProtocol[] = []
     const { ilp, custom, protocolMap } = data
 
     // ILP is always the primary protocol when it's specified
