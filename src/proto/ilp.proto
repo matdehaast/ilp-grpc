@@ -4,7 +4,7 @@ package interledger;
 
 service Interledger {
     rpc AddAccount (NewAccountRequest) returns (NewAccountResponse) {}
-//    rpc RemoveAccount(ConnectionRequest) returns (ConnectionResponse) {}
+//    rpc RemoveAccount(NewAccountRequest) returns (NewAccountResponse) {}
 //    rpc TrackConnection (ConnectionRequest) returns (ConnectionResponse) {}
 //    rpc UntrackConnection (ConnectionRequest) returns (ConnectionResponse) {}
     rpc HandleConnectionChange (ConnectionChangeRequest) returns (ConnectionResponse) {}

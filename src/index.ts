@@ -29,6 +29,7 @@ export interface IlpGrpcConstructorOptions {
     }
     dataHandler: any
     addAccountHandler?: any
+    removeAccountHandler?: any
     connectionChangeHandler?: any
     accountId? : string
     accountOptions?: object
@@ -66,9 +67,12 @@ export default class IlpGrpc extends EventEmitter2 {
     private _streams: Map<string, any>
     protected _log: any
     protected _responseTimeout: number
+
     protected _dataHandler: any
     protected _addAccountHandler: any
+    protected _removeAccountHandler: any
     protected _connectionChangeHandler?: any
+
     protected _accountId?: string
     protected _accountOptions?: {}
 
@@ -78,9 +82,13 @@ export default class IlpGrpc extends EventEmitter2 {
         this._server = options.server
         this._log = console
         this._responseTimeout = DEFAULT_TIMEOUT
+
         this._dataHandler = options.dataHandler
         this._addAccountHandler = options.addAccountHandler
+        this._removeAccountHandler = options.removeAccountHandler
         this._connectionChangeHandler = options.connectionChangeHandler
+
+
         this._streams = new Map()
         if(options.accountId)
             this._accountOptions = options.accountOptions
@@ -226,6 +234,12 @@ export default class IlpGrpc extends EventEmitter2 {
         let accountId = call.metadata.get('accountId')[0]
         this._streams.set(accountId, call)
         this._streams.get(accountId).on('data', (data: any) => this._handleIncomingDataStream(data, accountId));
+        this._streams.get(accountId).on('cancelled', () => {
+            if(this._removeAccountHandler) {
+                this._removeAccountHandler(accountId)
+                this._streams.delete(accountId)
+            }
+        });
     }
 
     private async _setupServer() {
