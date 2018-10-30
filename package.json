@@ -17,7 +17,7 @@
     "build": "tsc",
     "lint": "tslint --project .",
     "pretest": "tsc --build",
-    "test": "nyc mocha --ui mocha-typescript --require source-map-support/register build/test",
+    "test": "nyc mocha --ui mocha-typescript --exit --require source-map-support/register build/test",
     "doc": "typedoc --options typedoc.js src/lib/index.ts",
     "codecov": "codecov",
     "preversion": "npm run lint && npm test",
