@@ -26,6 +26,9 @@ async function main() {
         },
         connectionChangeHandler: (id, isConnected) => {
             console.log('account', id, 'connection status', isConnected)
+        },
+        removeAccountHandler: (id) => {
+            console.log('remove account: ' + id)
         }
     })
     await server.connect()
@@ -39,43 +42,47 @@ async function main() {
                 data: Buffer.from('thank you')
             })
     })
-
-    console.log('update')
-
+    //
+    // console.log('update')
+    //
     await client.connect()
 
-    console.log('update')
+    await sleep(10)
 
-    try {
-        await client.addAccount({
-            id: 'matt',
-            info: {
-                relation: 'child',
-                assetScale: 9,
-                assetCode: 'xrp'
-            }
-        })
-    } catch(error) {
-        console.log(error)
-    }
-
-    console.log('update')
-    await client.updateConnectionStatus(true)
-
-    // const preparePacket = IlpPacket.serializeIlpPrepare({
-    //     amount: '100',
-    //     executionCondition: Buffer.from('I3TZF5S3n0-07JWH0s8ArsxPmVP6s-0d0SqxR6C3Ifk', 'base64'),
-    //     expiresAt: new Date(),
-    //     destination: 'mock.test2.bob',
-    //     data: Buffer.alloc(0)
-    // })
     //
-    // let response = await server.sendData(preparePacket, 'test')
+    // console.log('update')
     //
-    // await sleep(1000)
+    // try {
+    //     await client.addAccount({
+    //         id: 'matt',
+    //         info: {
+    //             relation: 'child',
+    //             assetScale: 9,
+    //             assetCode: 'xrp'
+    //         }
+    //     })
+    // } catch(error) {
+    //     console.log(error)
+    // }
+    //
+    // console.log('update')
+    // await client.updateConnectionStatus(true)
+    //
+    // console.log('delete client')
+    // delete client
+    // console.log('client deleted')
+    // console.log(server._streams.get('test').write('test'))
+    const preparePacket = IlpPacket.serializeIlpPrepare({
+        amount: '100',
+        executionCondition: Buffer.from('I3TZF5S3n0-07JWH0s8ArsxPmVP6s-0d0SqxR6C3Ifk', 'base64'),
+        expiresAt: new Date(),
+        destination: 'mock.test2.bob',
+        data: Buffer.alloc(0)
+    })
 
+    let response = await server.sendData(preparePacket, 'test')
+    console.log(response)
 
-    // server.sendILP('test')
 }
 
 

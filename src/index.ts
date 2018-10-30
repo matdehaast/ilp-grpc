@@ -1,13 +1,26 @@
-import { EventEmitter2, Listener } from 'eventemitter2'
-const BtpPacket = require('btp-packet')
 import * as crypto from 'crypto'
+import * as Debug from 'debug'
+import { EventEmitter2, Listener } from 'eventemitter2'
+
+const BtpPacket = require('btp-packet')
+
+const debug = require('ilp-logger')('ilp-grpc')
+
 const DEFAULT_TIMEOUT = 35000
 
 /**
  * Setup gRPC proto giles
  */
 const PROTO_PATH = __dirname + '/proto/ilp.proto'
-const grpc = require('grpc')
+import {
+    ClientDuplexStream,
+    loadPackageDefinition,
+    Server,
+    ServerCredentials,
+    credentials,
+    Metadata,
+    MetadataValue
+} from 'grpc'
 const protoLoader = require('@grpc/proto-loader')
 // Suggested options for similarity to existing grpc.load behavior
 const packageDefinition = protoLoader.loadSync(
@@ -18,7 +31,7 @@ const packageDefinition = protoLoader.loadSync(
         defaults: true,
         oneofs: true
     })
-const protoDescriptor = grpc.loadPackageDefinition(packageDefinition)
+const protoDescriptor = loadPackageDefinition(packageDefinition)
 const interledger = protoDescriptor.interledger
 
 export interface IlpGrpcConstructorOptions {
@@ -27,10 +40,12 @@ export interface IlpGrpcConstructorOptions {
         port: number,
         secret: string
     }
-    dataHandler: any
-    addAccountHandler?: any
-    removeAccountHandler?: any
-    connectionChangeHandler?: any
+
+    dataHandler: DataHandler
+    addAccountHandler?: AddAccountHandler
+    removeAccountHandler?: RemoveAccountHandler
+    connectionChangeHandler?: ConnectionChangeHandler
+
     accountId? : string
     accountOptions?: object
 }
@@ -56,6 +71,10 @@ export interface BtpSubProtocol {
     data: Buffer
 }
 
+type DataHandler = (from: string, data: Buffer) => Promise<Buffer>
+type AddAccountHandler = (id: string, info: any) => null
+type RemoveAccountHandler = (id: string) => null
+type ConnectionChangeHandler = (id: string, status: boolean) => null
 
 export default class IlpGrpc extends EventEmitter2 {
 
@@ -64,14 +83,14 @@ export default class IlpGrpc extends EventEmitter2 {
     }
     private _server?: string
     private _grpc: any
-    private _streams: Map<string, any>
+    private _streams: Map<string, ClientDuplexStream<BtpPacket, BtpPacket>>
     protected _log: any
     protected _responseTimeout: number
 
-    protected _dataHandler: any
-    protected _addAccountHandler: any
-    protected _removeAccountHandler: any
-    protected _connectionChangeHandler?: any
+    protected _dataHandler: DataHandler
+    protected _addAccountHandler: AddAccountHandler
+    protected _removeAccountHandler: RemoveAccountHandler
+    protected _connectionChangeHandler?: ConnectionChangeHandler
 
     protected _accountId?: string
     protected _accountOptions?: {}
@@ -88,11 +107,14 @@ export default class IlpGrpc extends EventEmitter2 {
         this._removeAccountHandler = options.removeAccountHandler
         this._connectionChangeHandler = options.connectionChangeHandler
 
+        this._log = debug
+        this._log.trace = Debug(this._log.debug.namespace + ':trace')
 
         this._streams = new Map()
-        if(options.accountId)
+        if(options.accountId) {
             this._accountOptions = options.accountOptions
             this._accountId = options.accountId
+        }
     }
 
     async connect () {
@@ -106,20 +128,11 @@ export default class IlpGrpc extends EventEmitter2 {
         }
     }
 
-    whichOne() : string {
-        return this._server ? 'client' : 'server';
-    }
-
     isServer() : boolean {
         return !this._server
     }
 
-    async _handleIncomingDataStream (data: any, from: string = '') {
-        let btpPacket: BtpPacket
-
-        // TODO maybe need a check to see if correct btp packet?
-        btpPacket = data
-
+    async _handleIncomingDataStream (btpPacket: BtpPacket, from: string = '') {
         try {
             await this._handleIncomingBtpPacket(from, btpPacket)
         } catch (err) {
@@ -242,19 +255,28 @@ export default class IlpGrpc extends EventEmitter2 {
         });
     }
 
+    /**
+     * Setup ilp-grpc in server mode
+     * @private
+     */
     private async _setupServer() {
-        this._grpc = new grpc.Server();
+        this._grpc = new Server();
         this._grpc.addService(interledger.Interledger.service, {AddAccount: this.handleAddAccount.bind(this), Stream: this.handleStreamData.bind(this), HandleConnectionChange: this.handleConnectionChange.bind(this)});
         // @ts-ignore
-        this._grpc.bind('0.0.0.0:' + this._listener.port, grpc.ServerCredentials.createInsecure());
+        this._grpc.bind('0.0.0.0:' + this._listener.port, ServerCredentials.createInsecure());
         this._grpc.start();
     }
 
+    /**
+     * Setup ilp-grpc in client mode
+     * @private
+     */
     private async _setupClient() {
         this._grpc = new interledger.Interledger(this._server,
-            grpc.credentials.createInsecure())
-        let meta = new grpc.Metadata();
-        meta.add('accountId', this._accountId);
+            credentials.createInsecure())
+        let meta = new Metadata();
+        meta.add('accountId', this._accountId as MetadataValue);
+        // Need a mechanism to determine the stream is connected and ready. Can potentially use initial response metadata this._streams.get('server').on('metadata', (data) => console.log("STATUS", data))
         await this._streams.set('server', this._grpc.Stream(meta))
         this._streams.get('server').on('data', this._handleIncomingDataStream.bind(this));
     }
@@ -336,8 +358,6 @@ export default class IlpGrpc extends EventEmitter2 {
 
 }
 
-import { BtpSubProtocol } from '.'
-const Btp = require('btp-packet')
 
 /**
  * Convert BTP protocol array to a protocol map of all the protocols inside the
@@ -351,10 +371,10 @@ export function protocolDataToIlpAndCustom (data: { protocolData: Array<BtpSubPr
     for (const protocol of protocolData) {
         const name = protocol.protocolName
 
-        if (protocol.contentType === Btp.MIME_TEXT_PLAIN_UTF8) {
+        if (protocol.contentType === BtpPacket.MIME_TEXT_PLAIN_UTF8) {
             // @ts-ignore
             protocolMap[name] = protocol.data.toString('utf8')
-        } else if (protocol.contentType === Btp.MIME_APPLICATION_JSON) {
+        } else if (protocol.contentType === BtpPacket.MIME_APPLICATION_JSON) {
             // @ts-ignore
             protocolMap[name] = JSON.parse(protocol.data.toString('utf8'))
         } else {
@@ -385,7 +405,7 @@ export function ilpAndCustomToProtocolData (data: { ilp?: Buffer, custom?: Objec
     if (ilp) {
         protocolData.push({
             protocolName: 'ilp',
-            contentType: Btp.MIME_APPLICATION_OCTET_STREAM,
+            contentType: BtpPacket.MIME_APPLICATION_OCTET_STREAM,
             // TODO JS originally had a Buffer.from(ilp, 'base64')?
             data: ilp
         })
@@ -399,7 +419,7 @@ export function ilpAndCustomToProtocolData (data: { ilp?: Buffer, custom?: Objec
             if (Buffer.isBuffer(protocolMap[protocol])) {
                 protocolData.push({
                     protocolName: protocol,
-                    contentType: Btp.MIME_APPLICATION_OCTET_STREAM,
+                    contentType: BtpPacket.MIME_APPLICATION_OCTET_STREAM,
                     // @ts-ignore
                     data: protocolMap[protocol]
                 })
@@ -407,14 +427,14 @@ export function ilpAndCustomToProtocolData (data: { ilp?: Buffer, custom?: Objec
             } else if (typeof protocolMap[protocol] === 'string') {
                 protocolData.push({
                     protocolName: protocol,
-                    contentType: Btp.MIME_TEXT_PLAIN_UTF8,
+                    contentType: BtpPacket.MIME_TEXT_PLAIN_UTF8,
                     // @ts-ignore
                     data: Buffer.from(protocolMap[protocol])
                 })
             } else {
                 protocolData.push({
                     protocolName: protocol,
-                    contentType: Btp.MIME_APPLICATION_JSON,
+                    contentType: BtpPacket.MIME_APPLICATION_JSON,
                     // @ts-ignore
                     data: Buffer.from(JSON.stringify(protocolMap[protocol]))
                 })
@@ -427,7 +447,7 @@ export function ilpAndCustomToProtocolData (data: { ilp?: Buffer, custom?: Objec
     if (custom) {
         protocolData.push({
             protocolName: 'custom',
-            contentType: Btp.MIME_APPLICATION_JSON,
+            contentType: BtpPacket.MIME_APPLICATION_JSON,
             data: Buffer.from(JSON.stringify(custom))
         })
     }
