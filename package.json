@@ -2,19 +2,28 @@
   "name": "ilp-grpc",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.js",
-  "types": "src/index.d.ts",
+  "main": "build/lib/index.js",
+  "types": "build/lib/index.d.ts",
+  "files": [
+    "src/lib/**/*.ts",
+    "src/lib/proto/*.proto",
+    "build/lib/**/*.js",
+    "build/lib/**/*.js.map",
+    "build/lib/**/*.d.ts",
+    "build/doc"
+  ],
   "scripts": {
-    "start": "tsc && node lib/index.js",
-    "test": "jest",
+    "clean": "rm -Rf .nyc_output && rm -Rf coverage && rm -Rf build ",
     "build": "tsc",
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\" && prettier --write \"test/**/*.ts\" \"test/**/*.js\"",
-    "lint": "tslint -c tslint.json src/**/*.ts",
-    "preversion": "npm run lint",
-    "version": "npm run lint && git add -A src",
+    "lint": "tslint --project .",
+    "pretest": "tsc --build",
+    "test": "nyc mocha --ui mocha-typescript --require source-map-support/register build/test",
+    "doc": "typedoc --options typedoc.js src/lib/index.ts",
+    "codecov": "codecov",
+    "preversion": "npm run lint && npm test",
+    "version": "git add -A src",
     "postversion": "git push && git push --tags",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm run lint && npm run test"
+    "prepublishOnly": "npm run lint && npm test && npm run doc"
   },
   "dependencies": {
     "@grpc/proto-loader": "^0.3.0",
@@ -27,24 +36,51 @@
     "grpc": "^1.15.1",
     "ilp-logger": "^1.1.2",
     "ilp-packet": "^3.0.0",
+    "mocha": "^5.2.0",
     "riverpig": "^1.1.4",
     "through2": "^2.0.3",
+    "ts-node": "^7.0.1",
     "typescript": "^2.9.2"
   },
-  "files": [
-    "src/*.js",
-    "src/*.js.map",
-    "src/*.ts",
-    "src/*.d.ts",
-    "src/proto/*.proto"
-  ],
   "devDependencies": {
     "@types/jest": "^23.3.0",
-    "jest": "^23.4.1",
+    "nyc": "^13.1.0",
     "prettier": "^1.13.7",
     "ts-jest": "^23.0.1",
+    "tslint-config-prettier": "^1.14.0",
+    "@types/chai": "^4.1.4",
+    "@types/chai-as-promised": "^7.1.0",
+    "@types/mocha": "^5.2.5",
+    "@types/sinon": "^5.0.1",
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
+    "codecov": "^3.0.2",
+    "mocha": "^5.1.1",
+    "mocha-typescript": "^1.1.14",
+    "sinon": "^6.0.1",
+    "source-map-support": "^0.5.9",
     "tslint": "^5.11.0",
-    "tslint-config-prettier": "^1.14.0"
+    "tslint-config-standard": "^8.0.1",
+    "typedoc": "^0.12.0",
+    "typescript": "^3.0.3"
+  },
+  "nyc": {
+    "check-coverage": true,
+    "lines": 80,
+    "statements": 80,
+    "functions": 80,
+    "branches": 80,
+    "include": [
+      "build/lib/**/*.js"
+    ],
+    "exclude": [
+      "build/test/**/*.js"
+    ],
+    "reporter": [
+      "lcov",
+      "text-summary"
+    ],
+    "all": true
   },
   "author": "",
   "license": "ISC"

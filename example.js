@@ -1,6 +1,6 @@
 const BtpPacket = require("btp-packet");
 
-const IlpGrpc = require('./src').default
+const IlpGrpc = require('./src/lib/index').default
 const IlpPacket = require('ilp-packet')
 const crypto = require('crypto')
 function sha256 (preimage) { return crypto.createHash('sha256').update(preimage).digest() }
